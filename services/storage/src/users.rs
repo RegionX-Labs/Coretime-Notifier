@@ -1,8 +1,9 @@
 use rusqlite::{params, Connection, Error, Result};
+use serde::{Deserialize, Serialize};
 use types::Notifier;
 
 /// The data stored for each user in the database.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
 	/// A unique identifier for a user.
 	pub id: u32,

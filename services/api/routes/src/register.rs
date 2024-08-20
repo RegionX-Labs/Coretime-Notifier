@@ -62,7 +62,7 @@ pub async fn register_user(
 	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
-	let conn = conn.lock().unwrap(); // TODO.
+	let conn = conn.lock().unwrap(); // TODO: don't unwrap
 
 	registration_data.validate().map_err(|error| {
 		status::Custom(Status::BadRequest, Json(ErrorResponse { message: error.to_string() }))
