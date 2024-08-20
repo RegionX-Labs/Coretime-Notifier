@@ -7,7 +7,7 @@
 
 use rocket::{Build, Rocket};
 use rocket_cors::CorsOptions;
-use routes::register::register_user;
+use routes::{query::user, register::register_user};
 use storage_service::init_db;
 
 #[macro_use]
@@ -20,7 +20,7 @@ pub async fn rocket() -> Rocket<Build> {
 	rocket::build()
 		.attach(CorsOptions::default().to_cors().unwrap())
 		.manage(connection)
-		.mount("/", routes![register_user])
+		.mount("/", routes![register_user, user])
 }
 
 // There should be three paths: one POST path to set the notification configuration,
