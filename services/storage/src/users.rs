@@ -17,7 +17,7 @@ pub struct User {
 
 impl User {
 	pub fn query_all(conn: &Connection) -> Result<Vec<User>> {
-		let mut stmt = conn.prepare("SELECT * FROM users WHERE id=?1")?;
+		let mut stmt = conn.prepare("SELECT * FROM users")?;
 		let users_iter = stmt.query_map((), |row| {
 			let notifier = match row.get::<_, String>("notifier")?.as_str() {
 				"email" => Notifier::Email,
@@ -108,7 +108,7 @@ impl User {
 	}
 
 	pub fn create_user(conn: &Connection, user: &User) -> Result<()> {
-		let User { email, tg_handle, .. } = user;
+		let User { id, email, tg_handle, .. } = user;
 		let notifier = match user.notifier {
 			Notifier::Email => Some("email"),
 			Notifier::Telegram => Some("telegram"),
@@ -119,19 +119,19 @@ impl User {
 			Some(notifier) => {
 				conn.execute(
 					"INSERT INTO users
-                        (email, tg_handle, notifier)
-                        VALUES (?1, ?2, ?3)
+                        (id, email, tg_handle, notifier)
+                        VALUES (?1, ?2, ?3, ?4)
                     ",
-					params![email, tg_handle, notifier],
+					params![id, email, tg_handle, notifier],
 				)?;
 			},
 			None => {
 				conn.execute(
 					"INSERT INTO users
                         (email, tg_handle, notifier)
-                        VALUES (?1, ?2, NULL)
+                        VALUES (?1, ?2, ?3, NULL)
                     ",
-					params![email, tg_handle],
+					params![id, email, tg_handle],
 				)?;
 			},
 		};

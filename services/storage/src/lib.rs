@@ -20,7 +20,7 @@ pub fn init_db(db_path: &'static str) -> Result<DbConn> {
 	let conn = Connection::open(db_path)?;
 	conn.execute(
 		"CREATE TABLE IF NOT EXISTS users (
-               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+               id INTEGER PRIMARY KEY NOT NULL,
                tg_handle TEXT UNIQUE,
                email TEXT UNIQUE,
                notifier TEXT CHECK (
