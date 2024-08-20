@@ -1,10 +1,22 @@
 use crate::register::{register_user, RegistrationData};
-use rocket::{http::ContentType, local::blocking::Client, routes};
+use rocket::{
+	http::{ContentType, Status},
+	local::blocking::Client,
+	routes,
+};
+use storage::init_db;
 use types::Notifier;
 
 #[test]
 fn register_works() {
-	let rocket = rocket::build().mount("/", routes![register_user]);
+	// We reset the db before each test. <- TODO
+	// Don't check the result since it will error if the db already doesn't exist which isn't an
+	// issue.
+	let _ = std::fs::remove_file("test.db");
+	let rocket = rocket::build()
+		.manage(init_db("test.db").unwrap())
+		.mount("/", routes![register_user]);
+
 	let client = Client::tracked(rocket).expect("failed to create a client");
 
 	let registration_data = RegistrationData {
