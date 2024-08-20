@@ -8,3 +8,4 @@ rocket = { version = "0.5.0", features=["json"] }
 rocket_cors = "0.6.0"
 
 routes = { path = "./routes", package = "api-routes" }
+storage-service = { path = "../storage" }

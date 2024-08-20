@@ -136,25 +136,4 @@ impl User {
 		};
 		Ok(())
 	}
-
-	pub fn get_connection() -> Result<Connection> {
-		let db_path = "db/users.db";
-
-		// Create the `users.db` if it does not exist.
-		let conn = Connection::open(db_path)?;
-		conn.execute(
-			"CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                tg_handle TEXT UNIQUE,
-                email TEXT UNIQUE,
-                notifier TEXT CHECK (
-                    notifier IN ('email', 'telegram') 
-                    OR notifier IS NULL
-                )
-            )",
-			(),
-		)?;
-
-		Ok(conn)
-	}
 }

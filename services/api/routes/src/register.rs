@@ -1,5 +1,6 @@
-use rocket::{http::Status, post, response::status, serde::json::Json};
+use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
+use storage::DbConn;
 use types::{api::ErrorResponse, Notifications, Notifier};
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -58,9 +59,10 @@ impl Validate for RegistrationData {
 
 #[post("/register_user", data = "<registration_data>")]
 pub async fn register_user(
+	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
-	let conn = &User::get_connection().expect("DB connection not established");
+	let conn = conn.lock().unwrap(); // TODO.
 
 	registration_data.validate().map_err(|error| {
 		status::Custom(Status::BadRequest, Json(ErrorResponse { message: error.to_string() }))
@@ -71,12 +73,12 @@ pub async fn register_user(
 		Json(ErrorResponse { message: "User already exists with the same notifier".to_string() }),
 	));
 	if let Some(email) = registration_data.email.clone() {
-		if User::query_by_email(conn, email).is_ok() {
+		if User::query_by_email(&conn, email).is_ok() {
 			return error
 		}
 	}
 	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		if User::query_by_tg_handle(conn, tg_handle).is_ok() {
+		if User::query_by_tg_handle(&conn, tg_handle).is_ok() {
 			return error
 		}
 	}
@@ -88,7 +90,7 @@ pub async fn register_user(
 		notifier: registration_data.notifier.clone(),
 	};
 	// Register user
-	User::create_user(conn, &user).map_err(|_| {
+	User::create_user(&conn, &user).map_err(|_| {
 		status::Custom(
 			Status::InternalServerError,
 			Json(ErrorResponse { message: "Failed to register user".to_string() }),

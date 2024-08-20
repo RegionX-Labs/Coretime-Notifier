@@ -110,6 +110,7 @@ dependencies = [
  "api-routes",
  "rocket",
  "rocket_cors",
+ "storage-service",
 ]
 
 [[package]]
