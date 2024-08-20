@@ -13,12 +13,13 @@ pub struct RegistrationData {
 	pub id: u32,
 	/// Defines how the user wants to receive their notifications.
 	pub notifier: Notifier,
-	// The user's email, will be used if notifier != `Notifier::Telegram`
+	// The user's email, will be used if notifier == `Notifier::Telegram`
 	pub email: Option<String>,
-	// The user's telegram handle, used if tg_handle != `Notifier::Email`
+	// The user's telegram handle, used if tg_handle == `Notifier::Email`
 	#[serde(rename = "tgHandle")]
 	pub tg_handle: Option<String>,
 	// Notifications the user enabled.
+	#[serde(rename = "enabledNotifications")]
 	pub enabled_notifications: Vec<Notifications>,
 }
 
