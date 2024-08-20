@@ -9,3 +9,4 @@ tokio = { version = "1", features = ["full"] }
 api = { path = "./services/api", package = "api-service" }
 storage = { path = "./services/storage", package = "storage-service" }
 tracker = { path = "./services/tracker", package = "tracker-service" }
+google-oauth = "1.11.0"

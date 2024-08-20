@@ -22,6 +22,16 @@ pub struct RegistrationData {
 	pub enabled_notifications: Vec<Notifications>,
 }
 
+/// Contains data to authenticate users when registering.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct AuthenticationData {
+	/// Token for authenticating users who wish to receive the notifications via email.
+	email_auth_token: Option<String>,
+	/// Token for authenticating users who wish to receive the notifications via telegram.
+	tg_auth_token: Option<String>,
+}
+
 impl Validate for RegistrationData {
 	fn validate(&self) -> Result<(), ValidationErrors> {
 		let mut errors = ValidationErrors::new();
