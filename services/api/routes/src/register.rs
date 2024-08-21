@@ -2,7 +2,6 @@ use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use storage::DbConn;
 use types::{api::ErrorResponse, Notifications, Notifier};
-use validator::{Validate, ValidationError, ValidationErrors};
 
 use storage::users::User;
 
@@ -24,34 +23,12 @@ pub struct RegistrationData {
 	pub enabled_notifications: Vec<Notifications>,
 }
 
-impl Validate for RegistrationData {
-	fn validate(&self) -> Result<(), ValidationErrors> {
-		let mut errors = ValidationErrors::new();
-
-		// Ensure that the user has set either an email or Telegram handle.
-		if self.email.is_none() && self.tg_handle.is_none() {
-			let error = ValidationError::new("Email and Telegram cannot be empty");
-			errors.add("email", error.clone());
-			errors.add("tg_handle", error);
-			return Err(errors);
-		}
-
+impl RegistrationData {
+	fn validate(&self) -> Result<(), &str> {
 		// Ensure the configured notifier is set.
 		match self.notifier {
-			Notifier::Email =>
-				if self.email.is_none() {
-					errors.add("email", ValidationError::new("Email must not be empty"));
-					return Err(errors)
-				} else {
-					Ok(())
-				},
-			Notifier::Telegram =>
-				if self.tg_handle.is_none() {
-					errors.add("tg_handle", ValidationError::new("Telegram handle must exist"));
-					return Err(errors)
-				} else {
-					return Ok(())
-				},
+			Notifier::Email if self.email.is_none() => Err("Email must not be empty"),
+			Notifier::Telegram if self.tg_handle.is_none() => Err("Telegram handle must exist"),
 			_ => Ok(()),
 		}
 	}
@@ -68,7 +45,7 @@ pub async fn register_user(
 
 	registration_data
 		.validate()
-		.map_err(|error| custom_error(Status::BadRequest, error.to_string().as_str()))?;
+		.map_err(|error| custom_error(Status::BadRequest, error))?;
 
 	let error = Err(custom_error(
 		Status::InternalServerError,
