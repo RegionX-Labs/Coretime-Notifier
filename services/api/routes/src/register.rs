@@ -62,15 +62,17 @@ pub async fn register_user(
 	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
-	let conn = conn.lock().unwrap(); // TODO: don't unwrap
+	let conn = conn
+		.lock()
+		.map_err(|_| custom_error(Status::InternalServerError, "DB connection failed"))?;
 
-	registration_data.validate().map_err(|error| {
-		status::Custom(Status::BadRequest, Json(ErrorResponse { message: error.to_string() }))
-	})?;
+	registration_data
+		.validate()
+		.map_err(|error| custom_error(Status::BadRequest, error.to_string().as_str()))?;
 
-	let error = Err(status::Custom(
-		Status::BadRequest,
-		Json(ErrorResponse { message: "User already exists with the same notifier".to_string() }),
+	let error = Err(custom_error(
+		Status::InternalServerError,
+		"User already exists with the same notifier",
 	));
 	if let Some(email) = registration_data.email.clone() {
 		if User::query_by_email(&conn, email).is_ok() {
@@ -90,12 +92,12 @@ pub async fn register_user(
 		notifier: registration_data.notifier.clone(),
 	};
 	// Register user
-	User::create_user(&conn, &user).map_err(|_| {
-		status::Custom(
-			Status::InternalServerError,
-			Json(ErrorResponse { message: "Failed to register user".to_string() }),
-		)
-	})?;
+	User::create_user(&conn, &user)
+		.map_err(|_| custom_error(Status::InternalServerError, "Failed to register user"))?;
 
 	Ok(status::Custom(Status::Ok, ()))
+}
+
+fn custom_error(status: Status, message: &str) -> status::Custom<Json<ErrorResponse>> {
+	status::Custom(status, Json(ErrorResponse { message: message.to_string() }))
 }
