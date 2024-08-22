@@ -97,6 +97,7 @@ dependencies = [
  "common-macros",
  "rocket",
  "rocket_cors",
+ "rusqlite",
  "serde",
  "serde_json",
  "storage-service",

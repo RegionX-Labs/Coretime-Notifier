@@ -3,6 +3,7 @@ use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use storage::DbConn;
 use types::{api::ErrorResponse, Notifications, Notifier};
+use rusqlite::Connection;
 
 use storage::users::User;
 
@@ -40,24 +41,43 @@ pub async fn register_user(
 	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
+	// Get connection:
 	let conn = conn
 		.lock()
 		.map_err(|_| custom_error(Status::InternalServerError, "DB connection failed"))?;
 
+	// Validate registration data:
 	registration_data
 		.validate()
 		.map_err(|error| custom_error(Status::BadRequest, error))?;
 
-	// TODO: check if there is a user with same id.
+	ensure_unique_data(&conn, &registration_data)?;
+
+	let user = User {
+		id: registration_data.id,
+		email: registration_data.email.clone(),
+		tg_handle: registration_data.tg_handle.clone(),
+		notifier: registration_data.notifier.clone(),
+	};
+	// Register user
+	User::create_user(&conn, &user)
+		.map_err(|_| custom_error(Status::InternalServerError, "Failed to register user"))?;
+
+	Ok(status::Custom(Status::Ok, ()))
+}
+
+fn ensure_unique_data(conn: &Connection, registration_data: &Json<RegistrationData>) -> Result<(), status::Custom<Json<ErrorResponse>>> {
 	let maybe_user = User::query_by_id(&conn, registration_data.id)
 		.map_err(|_| custom_error(Status::InternalServerError, "Failed to check if user exists"))?;
+
+	// Ensure that the id is unique.
 	ensure!(
 		maybe_user.is_none(),
 		custom_error(Status::InternalServerError, "User with same id exists")
 	);
 
 	let error = custom_error(Status::InternalServerError, "User with the same notifier exists");
-
+	
 	if let Some(email) = registration_data.email.clone() {
 		let maybe_user = User::query_by_email(&conn, email).map_err(|_| {
 			custom_error(Status::InternalServerError, "Failed to check if user exists")
@@ -71,17 +91,7 @@ pub async fn register_user(
 		ensure!(maybe_user.is_none(), error);
 	}
 
-	let user = User {
-		id: registration_data.id,
-		email: registration_data.email.clone(),
-		tg_handle: registration_data.tg_handle.clone(),
-		notifier: registration_data.notifier.clone(),
-	};
-	// Register user
-	User::create_user(&conn, &user)
-		.map_err(|_| custom_error(Status::InternalServerError, "Failed to register user"))?;
-
-	Ok(status::Custom(Status::Ok, ()))
+	Ok(())
 }
 
 fn custom_error(status: Status, message: &str) -> status::Custom<Json<ErrorResponse>> {

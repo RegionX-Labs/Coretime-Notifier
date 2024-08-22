@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 types = { path = "../types" }
-serde ={ version = "1.0.193", features = ["derive"] }
+serde = { version = "1.0.193", features = ["derive"] }
