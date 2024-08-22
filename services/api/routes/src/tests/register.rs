@@ -36,11 +36,7 @@ fn register_works() {
 			enabled_notifications: vec![],
 		};
 		// CASE 1: the user has not set a notifier.
-		let response = client
-			.post("/register_user")
-			.header(ContentType::JSON)
-			.body(serde_json::to_string(&registration_data).unwrap())
-			.dispatch();
+		let response = register(&client, &registration_data);
 
 		assert_eq!(response.status(), Status::BadRequest);
 		assert_eq!(parse_err_response(response), "Email must not be empty".into());
@@ -48,11 +44,8 @@ fn register_works() {
 		// CASE 2: correct data, should work.
 		registration_data.email = Some("dummy@gmail.com".to_string());
 		registration_data.tg_handle = Some("@dummy".to_string());
-		let response = client
-			.post("/register_user")
-			.header(ContentType::JSON)
-			.body(serde_json::to_string(&registration_data).unwrap())
-			.dispatch();
+
+		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Ok);
 
 		let response = client.get("/user/0").dispatch();
@@ -68,11 +61,7 @@ fn register_works() {
 		);
 
 		// CASE 3: user with the same id exists
-		let response = client
-			.post("/register_user")
-			.header(ContentType::JSON)
-			.body(serde_json::to_string(&registration_data).unwrap())
-			.dispatch();
+		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), "User with same id exists".into());
 
@@ -84,11 +73,8 @@ fn register_works() {
 			tg_handle: None,
 			enabled_notifications: vec![],
 		};
-		let response = client
-			.post("/register_user")
-			.header(ContentType::JSON)
-			.body(serde_json::to_string(&registration_data).unwrap())
-			.dispatch();
+		let response = register(&client, &registration_data);
+
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
 
@@ -100,14 +86,19 @@ fn register_works() {
 			tg_handle: Some("@dummy".to_string()),
 			enabled_notifications: vec![],
 		};
-		let response = client
-			.post("/register_user")
-			.header(ContentType::JSON)
-			.body(serde_json::to_string(&registration_data).unwrap())
-			.dispatch();
+
+		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
 	});
+}
+
+fn register<'a>(client: &'a Client, data: &'a RegistrationData) -> LocalResponse<'a> {
+	client
+		.post("/register_user")
+		.header(ContentType::JSON)
+		.body(serde_json::to_string(&data).unwrap())
+		.dispatch()
 }
 
 fn parse_ok_response<'a>(response: LocalResponse<'a>) -> User {
