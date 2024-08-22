@@ -35,7 +35,7 @@ fn register_works() {
 			tg_handle: None,
 			enabled_notifications: vec![],
 		};
-		// CASE 1: the user has not set a notifier.
+		// CASE 1: the user did not set the notifier.
 		let response = register(&client, &registration_data);
 
 		assert_eq!(response.status(), Status::BadRequest);
