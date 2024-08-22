@@ -1,9 +1,9 @@
 use common_macros::ensure;
 use rocket::{http::Status, post, response::status, serde::json::Json, State};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use storage::DbConn;
 use types::{api::ErrorResponse, Notifications, Notifier};
-use rusqlite::Connection;
 
 use storage::users::User;
 
@@ -66,18 +66,18 @@ pub async fn register_user(
 	Ok(status::Custom(Status::Ok, ()))
 }
 
-fn ensure_unique_data(conn: &Connection, registration_data: &Json<RegistrationData>) -> Result<(), status::Custom<Json<ErrorResponse>>> {
+fn ensure_unique_data(
+	conn: &Connection,
+	registration_data: &Json<RegistrationData>,
+) -> Result<(), status::Custom<Json<ErrorResponse>>> {
 	let maybe_user = User::query_by_id(&conn, registration_data.id)
 		.map_err(|_| custom_error(Status::InternalServerError, "Failed to check if user exists"))?;
 
 	// Ensure that the id is unique.
-	ensure!(
-		maybe_user.is_none(),
-		custom_error(Status::InternalServerError, "User with same id exists")
-	);
+	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, "User with same id exists"));
 
-	let error = custom_error(Status::InternalServerError, "User with the same notifier exists");
-	
+	let error = custom_error(Status::Conflict, "User with the same notifier exists");
+
 	if let Some(email) = registration_data.email.clone() {
 		let maybe_user = User::query_by_email(&conn, email).map_err(|_| {
 			custom_error(Status::InternalServerError, "Failed to check if user exists")

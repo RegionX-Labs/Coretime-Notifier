@@ -47,6 +47,7 @@ fn register_works() {
 
 		// CASE 2: correct data, should work.
 		registration_data.email = Some("dummy@gmail.com".to_string());
+		registration_data.tg_handle = Some("@dummy".to_string());
 		let response = client
 			.post("/register_user")
 			.header(ContentType::JSON)
@@ -61,10 +62,51 @@ fn register_works() {
 			User {
 				id: 0,
 				email: Some("dummy@gmail.com".to_string()),
-				tg_handle: None,
+				tg_handle: Some("@dummy".to_string()),
 				notifier: Notifier::Email,
 			}
 		);
+
+		// CASE 3: user with the same id exists
+		let response = client
+			.post("/register_user")
+			.header(ContentType::JSON)
+			.body(serde_json::to_string(&registration_data).unwrap())
+			.dispatch();
+		assert_eq!(response.status(), Status::Conflict);
+		assert_eq!(parse_err_response(response), "User with same id exists".into());
+
+		// CASE 4: user with the same email exists:
+		let registration_data = RegistrationData {
+			id: 1,
+			notifier: Notifier::Email,
+			email: Some("dummy@gmail.com".to_string()),
+			tg_handle: None,
+			enabled_notifications: vec![],
+		};
+		let response = client
+			.post("/register_user")
+			.header(ContentType::JSON)
+			.body(serde_json::to_string(&registration_data).unwrap())
+			.dispatch();
+		assert_eq!(response.status(), Status::Conflict);
+		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
+
+		// CASE 5: user with the same email exists:
+		let registration_data = RegistrationData {
+			id: 1,
+			notifier: Notifier::Telegram,
+			email: None,
+			tg_handle: Some("@dummy".to_string()),
+			enabled_notifications: vec![],
+		};
+		let response = client
+			.post("/register_user")
+			.header(ContentType::JSON)
+			.body(serde_json::to_string(&registration_data).unwrap())
+			.dispatch();
+		assert_eq!(response.status(), Status::Conflict);
+		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
 	});
 }
 
