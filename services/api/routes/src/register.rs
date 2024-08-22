@@ -1,3 +1,4 @@
+use common_macros::ensure;
 use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use storage::DbConn;
@@ -47,19 +48,27 @@ pub async fn register_user(
 		.validate()
 		.map_err(|error| custom_error(Status::BadRequest, error))?;
 
-	let error = Err(custom_error(
-		Status::InternalServerError,
-		"User already exists with the same notifier",
-	));
+	// TODO: check if there is a user with same id.
+	let maybe_user = User::query_by_id(&conn, registration_data.id)
+		.map_err(|_| custom_error(Status::InternalServerError, "Failed to check if user exists"))?;
+	ensure!(
+		maybe_user.is_none(),
+		custom_error(Status::InternalServerError, "User with same id exists")
+	);
+
+	let error = custom_error(Status::InternalServerError, "User with the same notifier exists");
+
 	if let Some(email) = registration_data.email.clone() {
-		if User::query_by_email(&conn, email).is_ok() {
-			return error
-		}
+		let maybe_user = User::query_by_email(&conn, email).map_err(|_| {
+			custom_error(Status::InternalServerError, "Failed to check if user exists")
+		})?;
+		ensure!(maybe_user.is_none(), error);
 	}
 	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		if User::query_by_tg_handle(&conn, tg_handle).is_ok() {
-			return error
-		}
+		let maybe_user = User::query_by_tg_handle(&conn, tg_handle).map_err(|_| {
+			custom_error(Status::InternalServerError, "Failed to check if user exists")
+		})?;
+		ensure!(maybe_user.is_none(), error);
 	}
 
 	let user = User {
