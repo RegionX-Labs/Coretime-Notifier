@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
 
 pub mod api;
@@ -7,7 +5,7 @@ pub mod api;
 pub type ParaId = u32;
 
 /// Different events to which a user can subscribe to.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
 #[serde(crate = "rocket::serde")]
 pub enum Notifications {
 	/// Notifications for interlude phase.
@@ -24,7 +22,7 @@ pub enum Notifications {
 	ParachainState(ParaId),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(crate = "rocket::serde")]
 pub enum PhaseNotification {
 	/// Getting a notification `u64` seconds prior to phase start.
@@ -34,7 +32,7 @@ pub enum PhaseNotification {
 }
 
 /// Available options for receiving notification prior to an event happening.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(crate = "rocket::serde")]
 pub enum TimeOptions {
 	/// Receive a notification day before the phase starts.
@@ -48,7 +46,7 @@ pub enum TimeOptions {
 }
 
 /// The available methods to receive a notification.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(crate = "rocket::serde")]
 pub enum Notifier {
 	// User will receive notifications via their email.
