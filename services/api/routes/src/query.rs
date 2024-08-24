@@ -27,9 +27,10 @@ pub async fn user(
 		return Err(custom_error(Status::BadRequest, Error::UserNotFound));
 	};
 
-	// TODO: log errors
-	let serialized = serde_json::to_string(&user)
-		.map_err(|_| custom_error(Status::InternalServerError, Error::FailedToSerialize))?;
+	let serialized = serde_json::to_string(&user).map_err(|err| {
+		log::error!(target: LOG_TARGET, "Failed to serialize: {:?}", err);
+		custom_error(Status::InternalServerError, Error::FailedToSerialize)
+	})?;
 
 	Ok(status::Custom(Status::Ok, serialized))
 }
