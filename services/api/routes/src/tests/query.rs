@@ -2,7 +2,7 @@ use crate::{
 	errors::Error,
 	query::user,
 	register::{register_user, RegistrationData},
-	tests::mock::{execute_with, DB_PATH},
+	tests::mock::execute_with,
 };
 use rocket::{
 	http::{ContentType, Status},
@@ -13,9 +13,11 @@ use serde_json::from_str;
 use storage::{init_db, users::User};
 use types::{api::ErrorResponse, Notifier};
 
+pub const DB_PATH: &'static str = "query-tests.db";
+
 #[test]
 fn register_works() {
-	execute_with(|| {
+	execute_with(DB_PATH, || {
 		let conn = init_db(DB_PATH).unwrap();
 		let rocket = rocket::build().manage(conn).mount("/", routes![register_user, user]);
 
