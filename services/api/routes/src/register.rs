@@ -1,4 +1,7 @@
-use crate::errors::{custom_error, Error};
+use crate::{
+	errors::{custom_error, Error},
+	LOG_TARGET,
+};
 use common_macros::ensure;
 use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use rusqlite::Connection;
@@ -42,10 +45,13 @@ pub async fn register_user(
 	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
+	log::info!(target: LOG_TARGET, "Registration request: {:?}", registration_data);
+
 	// Get connection:
-	let conn = conn
-		.lock()
-		.map_err(|_| custom_error(Status::InternalServerError, Error::DbConnectionFailed))?;
+	let conn = conn.lock().map_err(|err| {
+		log::error!(target: LOG_TARGET, "DB connection failed: {:?}", err);
+		custom_error(Status::InternalServerError, Error::DbConnectionFailed)
+	})?;
 
 	// Validate registration data:
 	registration_data
@@ -61,8 +67,10 @@ pub async fn register_user(
 		notifier: registration_data.notifier.clone(),
 	};
 	// Register user
-	User::create_user(&conn, &user)
-		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+	User::create_user(&conn, &user).map_err(|err| {
+		log::error!(target: LOG_TARGET, "Failed to create user: {:?}", err);
+		custom_error(Status::InternalServerError, Error::DbError)
+	})?;
 
 	Ok(status::Custom(Status::Ok, ()))
 }
@@ -71,8 +79,10 @@ fn ensure_unique_data(
 	conn: &Connection,
 	registration_data: &Json<RegistrationData>,
 ) -> Result<(), status::Custom<Json<ErrorResponse>>> {
-	let maybe_user = User::query_by_id(&conn, registration_data.id)
-		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+	let maybe_user = User::query_by_id(&conn, registration_data.id).map_err(|err| {
+		log::error!(target: LOG_TARGET, "Failed to search user by id: {:?}", err);
+		custom_error(Status::InternalServerError, Error::DbError)
+	})?;
 
 	// Ensure that the id is unique.
 	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, Error::UserExists));
@@ -80,13 +90,18 @@ fn ensure_unique_data(
 	let error = custom_error(Status::Conflict, Error::NotifierNotUnique);
 
 	if let Some(email) = registration_data.email.clone() {
-		let maybe_user = User::query_by_email(&conn, email)
-			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+		let maybe_user = User::query_by_email(&conn, email).map_err(|err| {
+			log::error!(target: LOG_TARGET, "Failed to search user by email: {:?}", err);
+			custom_error(Status::InternalServerError, Error::DbError)
+		})?;
 		ensure!(maybe_user.is_none(), error);
 	}
+
 	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		let maybe_user = User::query_by_tg_handle(&conn, tg_handle)
-			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+		let maybe_user = User::query_by_tg_handle(&conn, tg_handle).map_err(|err| {
+			log::error!(target: LOG_TARGET, "Failed to search user by telegram: {:?}", err);
+			custom_error(Status::InternalServerError, Error::DbError)
+		})?;
 		ensure!(maybe_user.is_none(), error);
 	}
 
