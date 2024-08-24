@@ -1,4 +1,5 @@
 use crate::{
+	errors::Error,
 	query::user,
 	register::{register_user, RegistrationData},
 	tests::mock::{execute_with, DB_PATH},
@@ -39,7 +40,7 @@ fn register_works() {
 		let response = register(&client, &registration_data);
 
 		assert_eq!(response.status(), Status::BadRequest);
-		assert_eq!(parse_err_response(response), "Email must not be empty".into());
+		assert_eq!(parse_err_response(response), Error::NotifierEmpty);
 
 		// CASE 2: correct data, should work.
 		registration_data.email = Some("dummy@gmail.com".to_string());
@@ -63,7 +64,7 @@ fn register_works() {
 		// CASE 3: user with the same id exists
 		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Conflict);
-		assert_eq!(parse_err_response(response), "User with same id exists".into());
+		assert_eq!(parse_err_response(response), Error::UserExists);
 
 		// CASE 4: user with the same email exists:
 		let registration_data = RegistrationData {
@@ -76,9 +77,9 @@ fn register_works() {
 		let response = register(&client, &registration_data);
 
 		assert_eq!(response.status(), Status::Conflict);
-		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
+		assert_eq!(parse_err_response(response), Error::NotifierNotUnique);
 
-		// CASE 5: user with the same email exists:
+		// CASE 5: user with the same telegram exists:
 		let registration_data = RegistrationData {
 			id: 1,
 			notifier: Notifier::Telegram,
@@ -89,7 +90,7 @@ fn register_works() {
 
 		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Conflict);
-		assert_eq!(parse_err_response(response), "User with the same notifier exists".into());
+		assert_eq!(parse_err_response(response), Error::NotifierNotUnique);
 	});
 }
 
@@ -106,7 +107,8 @@ fn parse_ok_response<'a>(response: LocalResponse<'a>) -> User {
 	serde_json::from_str(&body).expect("can't parse value")
 }
 
-fn parse_err_response<'a>(response: LocalResponse<'a>) -> ErrorResponse {
+fn parse_err_response<'a>(response: LocalResponse<'a>) -> Error {
 	let body = response.into_string().unwrap();
-	from_str(&body).unwrap()
+	let error: ErrorResponse = from_str(&body).unwrap();
+	error.message.into()
 }

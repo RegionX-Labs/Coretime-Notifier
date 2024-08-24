@@ -1,3 +1,4 @@
+use crate::errors::Error;
 use common_macros::ensure;
 use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use rusqlite::Connection;
@@ -26,11 +27,11 @@ pub struct RegistrationData {
 }
 
 impl RegistrationData {
-	fn validate(&self) -> Result<(), &str> {
+	fn validate(&self) -> Result<(), Error> {
 		// Ensure the configured notifier is set.
 		match self.notifier {
-			Notifier::Email if self.email.is_none() => Err("Email must not be empty"),
-			Notifier::Telegram if self.tg_handle.is_none() => Err("Telegram handle must exist"),
+			Notifier::Email if self.email.is_none() => Err(Error::NotifierEmpty),
+			Notifier::Telegram if self.tg_handle.is_none() => Err(Error::NotifierEmpty),
 			_ => Ok(()),
 		}
 	}
@@ -44,7 +45,7 @@ pub async fn register_user(
 	// Get connection:
 	let conn = conn
 		.lock()
-		.map_err(|_| custom_error(Status::InternalServerError, "DB connection failed"))?;
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbConnectionFailed))?;
 
 	// Validate registration data:
 	registration_data
@@ -61,7 +62,7 @@ pub async fn register_user(
 	};
 	// Register user
 	User::create_user(&conn, &user)
-		.map_err(|_| custom_error(Status::InternalServerError, "Failed to register user"))?;
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 
 	Ok(status::Custom(Status::Ok, ()))
 }
@@ -71,29 +72,27 @@ fn ensure_unique_data(
 	registration_data: &Json<RegistrationData>,
 ) -> Result<(), status::Custom<Json<ErrorResponse>>> {
 	let maybe_user = User::query_by_id(&conn, registration_data.id)
-		.map_err(|_| custom_error(Status::InternalServerError, "Failed to check if user exists"))?;
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 
 	// Ensure that the id is unique.
-	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, "User with same id exists"));
+	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, Error::UserExists));
 
-	let error = custom_error(Status::Conflict, "User with the same notifier exists");
+	let error = custom_error(Status::Conflict, Error::NotifierNotUnique);
 
 	if let Some(email) = registration_data.email.clone() {
-		let maybe_user = User::query_by_email(&conn, email).map_err(|_| {
-			custom_error(Status::InternalServerError, "Failed to check if user exists")
-		})?;
+		let maybe_user = User::query_by_email(&conn, email)
+			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
 	}
 	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		let maybe_user = User::query_by_tg_handle(&conn, tg_handle).map_err(|_| {
-			custom_error(Status::InternalServerError, "Failed to check if user exists")
-		})?;
+		let maybe_user = User::query_by_tg_handle(&conn, tg_handle)
+			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
 	}
 
 	Ok(())
 }
 
-fn custom_error(status: Status, message: &str) -> status::Custom<Json<ErrorResponse>> {
-	status::Custom(status, Json(ErrorResponse { message: message.to_string() }))
+fn custom_error(status: Status, error: Error) -> status::Custom<Json<ErrorResponse>> {
+	status::Custom(status, Json(ErrorResponse { message: error.to_string() }))
 }
