@@ -1,4 +1,4 @@
-use crate::errors::Error;
+use crate::errors::{custom_error, Error};
 use common_macros::ensure;
 use rocket::{http::Status, post, response::status, serde::json::Json, State};
 use rusqlite::Connection;
@@ -91,8 +91,4 @@ fn ensure_unique_data(
 	}
 
 	Ok(())
-}
-
-fn custom_error(status: Status, error: Error) -> status::Custom<Json<ErrorResponse>> {
-	status::Custom(status, Json(ErrorResponse { message: error.to_string() }))
 }
