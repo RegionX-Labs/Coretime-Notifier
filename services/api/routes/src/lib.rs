@@ -6,3 +6,5 @@ mod errors;
 
 #[cfg(test)]
 mod tests;
+
+pub const LOG_TARGET: &str = "api-routes";
