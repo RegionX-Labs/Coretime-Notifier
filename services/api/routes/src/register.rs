@@ -1,7 +1,10 @@
-use rocket::{http::Status, post, response::status, serde::json::Json};
+use crate::errors::{custom_error, Error};
+use common_macros::ensure;
+use rocket::{http::Status, post, response::status, serde::json::Json, State};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use storage::DbConn;
 use types::{api::ErrorResponse, Notifications, Notifier};
-use validator::{Validate, ValidationError, ValidationErrors};
 
 use storage::users::User;
 
@@ -13,12 +16,13 @@ pub struct RegistrationData {
 	pub id: u32,
 	/// Defines how the user wants to receive their notifications.
 	pub notifier: Notifier,
-	// The user's email, will be used if notifier != `Notifier::Telegram`
+	// The user's email, will be used if notifier == `Notifier::Telegram`
 	pub email: Option<String>,
-	// The user's telegram handle, used if tg_handle != `Notifier::Email`
+	// The user's telegram handle, used if tg_handle == `Notifier::Email`
 	#[serde(rename = "tgHandle")]
 	pub tg_handle: Option<String>,
 	// Notifications the user enabled.
+	#[serde(rename = "enabledNotifications")]
 	pub enabled_notifications: Vec<Notifications>,
 }
 
@@ -32,34 +36,12 @@ pub struct AuthenticationData {
 	tg_auth_token: Option<String>,
 }
 
-impl Validate for RegistrationData {
-	fn validate(&self) -> Result<(), ValidationErrors> {
-		let mut errors = ValidationErrors::new();
-
-		// Ensure that the user has set either an email or Telegram handle.
-		if self.email.is_none() && self.tg_handle.is_none() {
-			let error = ValidationError::new("Email and Telegram cannot be empty");
-			errors.add("email", error.clone());
-			errors.add("tg_handle", error);
-			return Err(errors);
-		}
-
+impl RegistrationData {
+	fn validate(&self) -> Result<(), Error> {
 		// Ensure the configured notifier is set.
 		match self.notifier {
-			Notifier::Email =>
-				if self.email.is_none() {
-					errors.add("email", ValidationError::new("Email must not be empty"));
-					return Err(errors)
-				} else {
-					Ok(())
-				},
-			Notifier::Telegram =>
-				if self.tg_handle.is_none() {
-					errors.add("tg_handle", ValidationError::new("Telegram handle must exist"));
-					return Err(errors)
-				} else {
-					return Ok(())
-				},
+			Notifier::Email if self.email.is_none() => Err(Error::NotifierEmpty),
+			Notifier::Telegram if self.tg_handle.is_none() => Err(Error::NotifierEmpty),
 			_ => Ok(()),
 		}
 	}
@@ -67,28 +49,20 @@ impl Validate for RegistrationData {
 
 #[post("/register_user", data = "<registration_data>")]
 pub async fn register_user(
+	conn: &State<DbConn>,
 	registration_data: Json<RegistrationData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
-	let conn = &User::get_connection().expect("DB connection not established");
+	// Get connection:
+	let conn = conn
+		.lock()
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbConnectionFailed))?;
 
-	registration_data.validate().map_err(|error| {
-		status::Custom(Status::BadRequest, Json(ErrorResponse { message: error.to_string() }))
-	})?;
+	// Validate registration data:
+	registration_data
+		.validate()
+		.map_err(|error| custom_error(Status::BadRequest, error))?;
 
-	let error = Err(status::Custom(
-		Status::BadRequest,
-		Json(ErrorResponse { message: "User already exists with the same notifier".to_string() }),
-	));
-	if let Some(email) = registration_data.email.clone() {
-		if User::query_by_email(conn, email).is_ok() {
-			return error
-		}
-	}
-	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		if User::query_by_tg_handle(conn, tg_handle).is_ok() {
-			return error
-		}
-	}
+	ensure_unique_data(&conn, &registration_data)?;
 
 	let user = User {
 		id: registration_data.id,
@@ -97,12 +71,34 @@ pub async fn register_user(
 		notifier: registration_data.notifier.clone(),
 	};
 	// Register user
-	User::create_user(conn, &user).map_err(|_| {
-		status::Custom(
-			Status::InternalServerError,
-			Json(ErrorResponse { message: "Failed to register user".to_string() }),
-		)
-	})?;
+	User::create_user(&conn, &user)
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 
 	Ok(status::Custom(Status::Ok, ()))
+}
+
+fn ensure_unique_data(
+	conn: &Connection,
+	registration_data: &Json<RegistrationData>,
+) -> Result<(), status::Custom<Json<ErrorResponse>>> {
+	let maybe_user = User::query_by_id(&conn, registration_data.id)
+		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+
+	// Ensure that the id is unique.
+	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, Error::UserExists));
+
+	let error = custom_error(Status::Conflict, Error::NotifierNotUnique);
+
+	if let Some(email) = registration_data.email.clone() {
+		let maybe_user = User::query_by_email(&conn, email)
+			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+		ensure!(maybe_user.is_none(), error);
+	}
+	if let Some(tg_handle) = registration_data.tg_handle.clone() {
+		let maybe_user = User::query_by_tg_handle(&conn, tg_handle)
+			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
+		ensure!(maybe_user.is_none(), error);
+	}
+
+	Ok(())
 }
