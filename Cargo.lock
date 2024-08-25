@@ -96,6 +96,7 @@ version = "0.1.0"
 dependencies = [
  "authenticator-service",
  "common-macros",
+ "log",
  "rocket",
  "rocket_cors",
  "rusqlite",
