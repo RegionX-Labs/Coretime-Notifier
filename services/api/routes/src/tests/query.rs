@@ -33,9 +33,7 @@ fn register_works() {
 		// Register a user:
 		let registration_data = RegistrationData {
 			id: 0,
-			notifier: Notifier::Email,
-			email: Some("dummy@gmail.com".to_string()),
-			tg_handle: None,
+			notifier: Notifier::Email("dummy@gmail.com".to_string()),
 			enabled_notifications: vec![],
 			auth_data: AuthData {
 				email_access_token: Some("token".to_string()),
@@ -49,12 +47,7 @@ fn register_works() {
 		// After registering we should be able to get the user:
 		assert_eq!(
 			parse_ok_response(response),
-			User {
-				id: 0,
-				notifier: Notifier::Email,
-				email: Some("dummy@gmail.com".to_string()),
-				tg_handle: None,
-			}
+			User { id: 0, notifier: Notifier::Email("dummy@gmail.com".to_string()) }
 		);
 	});
 }

@@ -44,7 +44,7 @@ impl RegistrationData {
 			Notifier::Telegram(tg_handle) => {
 				ensure!(self.auth_data.tg_auth_token.is_some(), Error::AuthDataEmpty);
 			},
-			_ => (),
+			Notifier::Null => return Err(Error::NotifierEmpty),
 		};
 
 		Ok(())
@@ -110,7 +110,7 @@ fn ensure_unique_data(
 			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
 	}
-	if let Notifier::Email(tg_handle) = &registration_data.notifier {
+	if let Notifier::Telegram(tg_handle) = &registration_data.notifier {
 		let maybe_user = User::query_by_tg_handle(&conn, tg_handle.clone())
 			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
