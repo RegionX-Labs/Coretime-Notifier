@@ -16,11 +16,6 @@ pub struct RegistrationData {
 	pub id: u32,
 	/// Defines how the user wants to receive their notifications.
 	pub notifier: Notifier,
-	/// The user's email, will be used if notifier == `Notifier::Telegram`
-	pub email: Option<String>,
-	/// The user's telegram handle, used if tg_handle == `Notifier::Email`
-	#[serde(rename = "tgHandle")]
-	pub tg_handle: Option<String>,
 	/// Notifications the user enabled.
 	#[serde(rename = "enabledNotifications")]
 	pub enabled_notifications: Vec<Notifications>,
@@ -42,14 +37,12 @@ pub struct AuthData {
 impl RegistrationData {
 	fn validate(&self) -> Result<(), Error> {
 		// Ensure the configured notifier and auth data is set.
-		match self.notifier {
-			Notifier::Email => {
+		match &self.notifier {
+			Notifier::Email(email) => {
 				ensure!(self.auth_data.email_access_token.is_some(), Error::AuthDataEmpty);
-				ensure!(self.email.is_some(), Error::NotifierEmpty);
 			},
-			Notifier::Telegram => {
+			Notifier::Telegram(tg_handle) => {
 				ensure!(self.auth_data.tg_auth_token.is_some(), Error::AuthDataEmpty);
-				ensure!(self.tg_handle.is_some(), Error::NotifierEmpty);
 			},
 			_ => (),
 		};
@@ -76,7 +69,7 @@ pub async fn register_user(
 	ensure_unique_data(&conn, &registration_data)?;
 
 	match registration_data.notifier {
-		Notifier::Email => {
+		Notifier::Email(_) => {
 			/* TODO:
 			let email = authenticator::authenticate_google_user(
 				registration_data.auth_data.email_access_token,
@@ -88,16 +81,11 @@ pub async fn register_user(
 			);
 			*/
 		},
-		Notifier::Telegram => {},
+		Notifier::Telegram(_) => {},
 		Notifier::Null => {},
 	}
 
-	let user = User {
-		id: registration_data.id,
-		email: registration_data.email.clone(),
-		tg_handle: registration_data.tg_handle.clone(),
-		notifier: registration_data.notifier.clone(),
-	};
+	let user = User { id: registration_data.id, notifier: registration_data.notifier.clone() };
 	// Register user
 	User::create_user(&conn, &user)
 		.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
@@ -117,13 +105,13 @@ fn ensure_unique_data(
 
 	let error = custom_error(Status::Conflict, Error::NotifierNotUnique);
 
-	if let Some(email) = registration_data.email.clone() {
-		let maybe_user = User::query_by_email(&conn, email)
+	if let Notifier::Email(email) = &registration_data.notifier {
+		let maybe_user = User::query_by_email(&conn, email.clone())
 			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
 	}
-	if let Some(tg_handle) = registration_data.tg_handle.clone() {
-		let maybe_user = User::query_by_tg_handle(&conn, tg_handle)
+	if let Notifier::Email(tg_handle) = &registration_data.notifier {
+		let maybe_user = User::query_by_tg_handle(&conn, tg_handle.clone())
 			.map_err(|_| custom_error(Status::InternalServerError, Error::DbError))?;
 		ensure!(maybe_user.is_none(), error);
 	}
