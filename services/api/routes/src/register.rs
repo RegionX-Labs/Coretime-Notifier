@@ -62,10 +62,7 @@ pub async fn register_user(
 	log::info!(target: LOG_TARGET, "Registration request: {:?}", registration_data);
 
 	// Get connection:
-	let conn = conn.lock().map_err(|err| {
-		log::error!(target: LOG_TARGET, "DB connection failed: {:?}", err);
-		custom_error(Status::InternalServerError, Error::DbConnectionFailed)
-	})?;
+	let conn = conn.lock().await;
 
 	// Validate registration data:
 	registration_data
@@ -74,22 +71,8 @@ pub async fn register_user(
 
 	ensure_unique_data(&conn, &registration_data)?;
 
-	match registration_data.notifier {
-		Notifier::Email(_) => {
-			/* TODO:
-			let email = authenticator::authenticate_google_user(
-				registration_data.auth_data.email_access_token,
-			)
-			.await?;
-			ensure!(
-				Some(email) == registration_data.email,
-				custom_error(Status::Unauthorized, Error::BadAuthData)
-			);
-			*/
-		},
-		Notifier::Telegram(_) => {},
-		Notifier::Null => {},
-	}
+	authenticate_user(registration_data.notifier.clone(), registration_data.auth_data.clone())
+		.await;
 
 	let user = User { id: registration_data.id, notifier: registration_data.notifier.clone() };
 	// Register user
@@ -99,6 +82,29 @@ pub async fn register_user(
 	})?;
 
 	Ok(status::Custom(Status::Ok, ()))
+}
+
+async fn authenticate_user(notifier: Notifier, auth_data: AuthData) -> Result<(), Error> {
+	let maybe_email_token = auth_data.email_access_token;
+
+	match notifier {
+		Notifier::Email(email) => {
+			// This should never happen due to validation; however, we will be preventive.
+			let Some(email_token) = maybe_email_token else {
+				return Err(Error::AuthDataEmpty);
+			};
+			let authenticated_email = authenticator::authenticate_google_user(&email_token)
+				.await
+				.map_err(|_err| Error::BadAuthData)?;
+			// ^^ TODO: proper auth data
+
+			ensure!(*email == authenticated_email, Error::BadAuthData);
+		},
+		Notifier::Telegram(_) => {},
+		Notifier::Null => {},
+	};
+
+	Ok(())
 }
 
 fn ensure_unique_data(

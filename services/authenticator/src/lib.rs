@@ -22,11 +22,11 @@ struct UserInfo {
 pub async fn authenticate_google_user(access_token: &str) -> Result<String, &'static str> {
 	dotenv().ok();
 
-	let client_id = env::var("CLIENT_ID").unwrap();
+	let client_id = env::var("CLIENT_ID").map_err(|_err| "TODO: error")?;
 	let client = AsyncClient::new(client_id);
 
 	client.validate_access_token(access_token).await.map_err(|_err| "TODO: error")?;
-	let user = get_user_info(&access_token).await.unwrap();
+	let user = get_user_info(&access_token).await.map_err(|_err| "TODO: error")?;
 
 	Ok(user.email)
 }

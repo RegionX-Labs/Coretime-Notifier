@@ -13,10 +13,7 @@ pub async fn user(
 ) -> Result<status::Custom<String>, status::Custom<Json<ErrorResponse>>> {
 	log::info!(target: LOG_TARGET, "Querying user: {}", user_id);
 
-	let conn = conn.lock().map_err(|err| {
-		log::error!(target: LOG_TARGET, "DB connection failed: {:?}", err);
-		custom_error(Status::InternalServerError, Error::DbConnectionFailed)
-	})?;
+	let conn = conn.lock().await;
 
 	let maybe_user = User::query_by_id(&conn, user_id).map_err(|err| {
 		log::error!(target: LOG_TARGET, "Failed to search user by id: {:?}", err);
