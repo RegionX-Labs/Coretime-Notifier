@@ -75,6 +75,23 @@ pub async fn register_user(
 
 	ensure_unique_data(&conn, &registration_data)?;
 
+	match registration_data.notifier {
+		Notifier::Email => {
+			/* TODO:
+			let email = authenticator::authenticate_google_user(
+				registration_data.auth_data.email_access_token,
+			)
+			.await?;
+			ensure!(
+				Some(email) == registration_data.email,
+				custom_error(Status::Unauthorized, Error::BadAuthData)
+			);
+			*/
+		},
+		Notifier::Telegram => {},
+		Notifier::Null => {},
+	}
+
 	let user = User {
 		id: registration_data.id,
 		email: registration_data.email.clone(),

@@ -13,3 +13,4 @@ types = { path = "../../types" }
 common-macros = { path = "../../../macros" }
 storage = { path = "../../storage", package = "storage-service" }
 rusqlite = { version = "0.32.1", features = ["bundled"] }
+authenticator = { path = "../../authenticator", package="authenticator-service" }

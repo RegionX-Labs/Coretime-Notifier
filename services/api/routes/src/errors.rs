@@ -25,6 +25,8 @@ pub enum Error {
 	FailedToSerialize,
 	/// The auth data is not provided by the user.
 	AuthDataEmpty,
+	/// The authentication data does not verify the user as the person they claim to be.
+	BadAuthData,
 }
 
 impl fmt::Display for Error {

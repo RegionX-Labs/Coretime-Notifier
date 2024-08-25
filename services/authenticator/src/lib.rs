@@ -12,24 +12,23 @@ use std::env;
 
 #[derive(Deserialize)]
 struct UserInfo {
+	// The email of the user.
 	email: String,
 }
 
-pub async fn authenticate_google_user(access_token: &str) -> Result<(), &'static str> {
+/// Identifies the user based on the access token.
+///
+/// When successful returns the user's email.
+pub async fn authenticate_google_user(access_token: &str) -> Result<String, &'static str> {
 	dotenv().ok();
 
 	let client_id = env::var("CLIENT_ID").unwrap();
-	println!("{}", client_id);
-
 	let client = AsyncClient::new(client_id);
 
-	let payload = client.validate_access_token(access_token).await.unwrap(); // In production, remember to handle this error.
-
-	println!("Hello {}", &payload.sub);
+	client.validate_access_token(access_token).await.map_err(|_err| "TODO: error")?;
 	let user = get_user_info(&access_token).await.unwrap();
-	println!("email: {}", user.email);
 
-	Ok(())
+	Ok(user.email)
 }
 
 pub fn authenticate_telegram_user() -> Result<(), &'static str> {
