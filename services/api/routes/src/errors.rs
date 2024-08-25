@@ -23,6 +23,8 @@ pub enum Error {
 	UserNotFound,
 	/// Failed to serialize some data,
 	FailedToSerialize,
+	/// The auth data is not provided by the user.
+	AuthDataEmpty,
 }
 
 impl fmt::Display for Error {

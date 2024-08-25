@@ -1,7 +1,7 @@
 use crate::{
 	errors::Error,
 	query::user,
-	register::{register_user, RegistrationData},
+	register::{register_user, AuthData, RegistrationData},
 	tests::mock::execute_with,
 };
 use rocket::{
@@ -31,12 +31,18 @@ fn register_works() {
 
 		let client = Client::tracked(rocket).expect("failed to create a client");
 
+		let dummy_auth_data = AuthData {
+			email_access_token: Some("token".to_string()),
+			tg_auth_token: Some("token".to_string()),
+		};
+
 		let mut registration_data = RegistrationData {
 			id: 0,
 			notifier: Notifier::Email,
 			email: None,
 			tg_handle: None,
 			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
 		};
 		// CASE 1: the user did not set the notifier.
 		let response = register(&client, &registration_data);
@@ -75,6 +81,7 @@ fn register_works() {
 			email: Some("dummy@gmail.com".to_string()),
 			tg_handle: None,
 			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
 		};
 		let response = register(&client, &registration_data);
 
@@ -88,6 +95,7 @@ fn register_works() {
 			email: None,
 			tg_handle: Some("@dummy".to_string()),
 			enabled_notifications: vec![],
+			auth_data: dummy_auth_data,
 		};
 
 		let response = register(&client, &registration_data);

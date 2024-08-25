@@ -16,34 +16,45 @@ pub struct RegistrationData {
 	pub id: u32,
 	/// Defines how the user wants to receive their notifications.
 	pub notifier: Notifier,
-	// The user's email, will be used if notifier == `Notifier::Telegram`
+	/// The user's email, will be used if notifier == `Notifier::Telegram`
 	pub email: Option<String>,
-	// The user's telegram handle, used if tg_handle == `Notifier::Email`
+	/// The user's telegram handle, used if tg_handle == `Notifier::Email`
 	#[serde(rename = "tgHandle")]
 	pub tg_handle: Option<String>,
-	// Notifications the user enabled.
+	/// Notifications the user enabled.
 	#[serde(rename = "enabledNotifications")]
 	pub enabled_notifications: Vec<Notifications>,
+	/// Data used to authenticate users.
+	#[serde(rename = "authData")]
+	pub auth_data: AuthData,
 }
 
 /// Contains data to authenticate users when registering.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct AuthenticationData {
+pub struct AuthData {
 	/// Token for authenticating users who wish to receive the notifications via email.
-	email_auth_token: Option<String>,
+	pub email_access_token: Option<String>,
 	/// Token for authenticating users who wish to receive the notifications via telegram.
-	tg_auth_token: Option<String>,
+	pub tg_auth_token: Option<String>,
 }
 
 impl RegistrationData {
 	fn validate(&self) -> Result<(), Error> {
-		// Ensure the configured notifier is set.
+		// Ensure the configured notifier and auth data is set.
 		match self.notifier {
-			Notifier::Email if self.email.is_none() => Err(Error::NotifierEmpty),
-			Notifier::Telegram if self.tg_handle.is_none() => Err(Error::NotifierEmpty),
-			_ => Ok(()),
-		}
+			Notifier::Email => {
+				ensure!(self.auth_data.email_access_token.is_some(), Error::AuthDataEmpty);
+				ensure!(self.email.is_some(), Error::NotifierEmpty);
+			},
+			Notifier::Telegram => {
+				ensure!(self.auth_data.tg_auth_token.is_some(), Error::AuthDataEmpty);
+				ensure!(self.tg_handle.is_some(), Error::NotifierEmpty);
+			},
+			_ => (),
+		};
+
+		Ok(())
 	}
 }
 
