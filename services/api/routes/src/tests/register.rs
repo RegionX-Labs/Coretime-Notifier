@@ -104,6 +104,44 @@ fn register_works() {
 	});
 }
 
+#[test]
+fn register_fails_without_auth_data() {
+	execute_with(DB_PATH, || {
+		let conn = init_db(DB_PATH).unwrap();
+		let rocket = rocket::build().manage(conn).mount("/", routes![register_user, user]);
+
+		let client = Client::tracked(rocket).expect("failed to create a client");
+
+		let mut registration_data = RegistrationData {
+			id: 0,
+			notifier: Notifier::Email,
+			email: Some("dummy@gmail.com".to_string()),
+			tg_handle: Some("@dummy".to_string()),
+			enabled_notifications: vec![],
+			auth_data: AuthData {
+				email_access_token: Some("token".to_string()),
+				tg_auth_token: Some("token".to_string()),
+			},
+		};
+
+		// CASE 1: email auth not set
+		registration_data.auth_data.email_access_token = None;
+		let response = register(&client, &registration_data);
+
+		assert_eq!(response.status(), Status::BadRequest);
+		assert_eq!(parse_err_response(response), Error::AuthDataEmpty);
+
+		// CASE 2: tg auth not set
+		registration_data.auth_data.tg_auth_token = None;
+		registration_data.notifier = Notifier::Telegram;
+
+		let response = register(&client, &registration_data);
+
+		assert_eq!(response.status(), Status::BadRequest);
+		assert_eq!(parse_err_response(response), Error::AuthDataEmpty);
+	});
+}
+
 fn register<'a>(client: &'a Client, data: &'a RegistrationData) -> LocalResponse<'a> {
 	client
 		.post("/register_user")

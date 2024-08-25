@@ -43,6 +43,7 @@ impl From<String> for Error {
 			"NotifierNotUnique" => Error::NotifierNotUnique,
 			"UserNotFound" => Error::UserNotFound,
 			"FailedToSerialize" => Error::FailedToSerialize,
+			"AuthDataEmpty" => Error::AuthDataEmpty,
 			_ => panic!("UnknownError"),
 		}
 	}
