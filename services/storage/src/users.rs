@@ -142,7 +142,7 @@ impl User {
 				"UPDATE users SET
 					email = ?1, tg_handle = ?2, notifier = ?3
 					WHERE id = ?4
-				", 
+				",
 				params![email, tg_handle, notifier.unwrap(), id],
 			)?;
 		} else {
@@ -150,7 +150,7 @@ impl User {
 				"UPDATE users SET
 					email = ?1, tg_handle = ?2, notifier = NULL
 					WHERE id = ?3
-				", 
+				",
 				params![email, tg_handle, id],
 			)?;
 		}
