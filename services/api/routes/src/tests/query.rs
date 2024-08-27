@@ -1,7 +1,7 @@
 use crate::{
 	errors::Error,
 	query::user,
-	register::{register_user, RegistrationData},
+	register::{register_user, AuthData, RegistrationData},
 	tests::mock::execute_with,
 };
 use rocket::{
@@ -33,10 +33,12 @@ fn register_works() {
 		// Register a user:
 		let registration_data = RegistrationData {
 			id: 0,
-			notifier: Notifier::Email,
-			email: Some("dummy@gmail.com".to_string()),
-			tg_handle: None,
+			notifier: Notifier::Email("dummy@gmail.com".to_string()),
 			enabled_notifications: vec![],
+			auth_data: AuthData {
+				email_access_token: Some("token".to_string()),
+				tg_auth_token: Some("token".to_string()),
+			},
 		};
 		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Ok);
@@ -45,12 +47,7 @@ fn register_works() {
 		// After registering we should be able to get the user:
 		assert_eq!(
 			parse_ok_response(response),
-			User {
-				id: 0,
-				notifier: Notifier::Email,
-				email: Some("dummy@gmail.com".to_string()),
-				tg_handle: None,
-			}
+			User { id: 0, notifier: Notifier::Email("dummy@gmail.com".to_string()) }
 		);
 	});
 }

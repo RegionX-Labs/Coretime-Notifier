@@ -49,10 +49,14 @@ pub enum TimeOptions {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(crate = "rocket::serde")]
 pub enum Notifier {
-	// User will receive notifications via their email.
-	Email,
-	// User will receive notifications via their telegram.
-	Telegram,
+	/// User will receive notifications via their email.
+	///
+	/// The string represents the user's email address.
+	Email(String),
+	/// User will receive notifications via their telegram.
+	///
+	/// The string represents the user's telegram handle.
+	Telegram(String),
 	/// If `Null` user will not receive notifications.
 	Null,
 }

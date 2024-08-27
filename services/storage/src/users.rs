@@ -7,10 +7,6 @@ use types::Notifier;
 pub struct User {
 	/// A unique identifier for a user.
 	pub id: u32,
-	/// Email of the user.
-	pub email: Option<String>,
-	/// Telegram handle of the user.
-	pub tg_handle: Option<String>,
 	/// Defines the channel through which the user would like to be notified.
 	pub notifier: Notifier,
 }
@@ -19,18 +15,16 @@ impl User {
 	pub fn query_all(conn: &Connection) -> Result<Vec<User>> {
 		let mut stmt = conn.prepare("SELECT * FROM users")?;
 		let users_iter = stmt.query_map((), |row| {
+			let email = row.get("email")?;
+			let tg_handle = row.get("tg_handle")?;
+
 			let notifier = match row.get::<_, String>("notifier")?.as_str() {
-				"email" => Notifier::Email,
-				"telegram" => Notifier::Telegram,
+				"email" => Notifier::Email(email),
+				"telegram" => Notifier::Telegram(tg_handle),
 				_ => Notifier::Null,
 			};
 
-			Ok(User {
-				id: row.get("id")?,
-				tg_handle: row.get("tg_handle")?,
-				email: row.get("email")?,
-				notifier,
-			})
+			Ok(User { id: row.get("id")?, notifier })
 		})?;
 
 		let users = users_iter.filter_map(Result::ok).collect();
@@ -41,16 +35,12 @@ impl User {
 		let mut smth = conn.prepare("SELECT * FROM users WHERE id=?1")?;
 		let mut users_iter = smth.query_map(&[&id], |row| {
 			let notifier = match row.get::<_, String>("notifier")?.as_str() {
-				"email" => Notifier::Email,
-				"telegram" => Notifier::Telegram,
+				"email" => Notifier::Email(row.get("email")?),
+				"telegram" => Notifier::Telegram(row.get("tg_handle")?),
 				_ => Notifier::Null,
 			};
-			Ok(User {
-				id: row.get("id")?,
-				tg_handle: row.get("tg_handle")?,
-				email: row.get("email")?,
-				notifier,
-			})
+
+			Ok(User { id, notifier })
 		})?;
 
 		match users_iter.next() {
@@ -64,16 +54,11 @@ impl User {
 		let mut smth = conn.prepare("SELECT * FROM users WHERE email=?1")?;
 		let mut users_iter = smth.query_map(&[&email], |row| {
 			let notifier = match row.get::<_, String>("notifier")?.as_str() {
-				"email" => Notifier::Email,
-				"telegram" => Notifier::Telegram,
+				"email" => Notifier::Email(row.get("email")?),
+				"telegram" => Notifier::Telegram(row.get("tg_handle")?),
 				_ => Notifier::Null,
 			};
-			Ok(User {
-				id: row.get("id")?,
-				tg_handle: row.get("tg_handle")?,
-				email: row.get("email")?,
-				notifier,
-			})
+			Ok(User { id: row.get("id")?, notifier })
 		})?;
 
 		match users_iter.next() {
@@ -87,16 +72,11 @@ impl User {
 		let mut smth = conn.prepare("SELECT * FROM users WHERE tg_handle=?1")?;
 		let mut users_iter = smth.query_map(&[&handle], |row| {
 			let notifier = match row.get::<_, String>("notifier")?.as_str() {
-				"email" => Notifier::Email,
-				"telegram" => Notifier::Telegram,
+				"email" => Notifier::Email(row.get("email")?),
+				"telegram" => Notifier::Telegram(row.get("tg_handle")?),
 				_ => Notifier::Null,
 			};
-			Ok(User {
-				id: row.get("id")?,
-				tg_handle: row.get("tg_handle")?,
-				email: row.get("email")?,
-				notifier,
-			})
+			Ok(User { id: row.get("id")?, notifier })
 		})?;
 
 		match users_iter.next() {
@@ -107,11 +87,20 @@ impl User {
 	}
 
 	pub fn create_user(conn: &Connection, user: &User) -> Result<()> {
-		let User { id, email, tg_handle, .. } = user;
-		let notifier = match user.notifier {
-			Notifier::Email => Some("email"),
-			Notifier::Telegram => Some("telegram"),
+		let email = match &user.notifier {
+			Notifier::Email(e) => Some(e),
 			_ => None,
+		};
+
+		let tg_handle = match &user.notifier {
+			Notifier::Telegram(t) => Some(t),
+			_ => None,
+		};
+
+		let notifier = match user.notifier {
+			Notifier::Email(_) => Some("email"),
+			Notifier::Telegram(_) => Some("telegram"),
+			Notifier::Null => None,
 		};
 
 		match notifier {
@@ -121,7 +110,7 @@ impl User {
                         (id, email, tg_handle, notifier)
                         VALUES (?1, ?2, ?3, ?4)
                     ",
-					params![id, email, tg_handle, notifier],
+					params![user.id, email, tg_handle, notifier],
 				)?;
 			},
 			None => {
@@ -130,7 +119,7 @@ impl User {
                         (email, tg_handle, notifier)
                         VALUES (?1, ?2, ?3, NULL)
                     ",
-					params![id, email, tg_handle],
+					params![user.id, email, tg_handle],
 				)?;
 			},
 		};

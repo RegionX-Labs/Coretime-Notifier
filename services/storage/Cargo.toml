@@ -7,3 +7,4 @@ edition = "2021"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 types = { path = "../types" }
 serde = { version = "1.0.193", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }

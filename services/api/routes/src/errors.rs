@@ -11,7 +11,7 @@ use types::api::ErrorResponse;
 pub enum Error {
 	/// Failed to get the db connection.
 	DbConnectionFailed,
-	/// The configured notifier cannot be empty.
+	/// The configured notifier cannot be empty when registering.
 	NotifierEmpty,
 	/// Attempted accessing the db but failed.
 	DbError,
@@ -23,6 +23,10 @@ pub enum Error {
 	UserNotFound,
 	/// Failed to serialize some data,
 	FailedToSerialize,
+	/// The auth data is not provided by the user.
+	AuthDataEmpty,
+	/// The authentication data does not verify the user as the person they claim to be.
+	BadAuthData,
 }
 
 impl fmt::Display for Error {
@@ -41,6 +45,8 @@ impl From<String> for Error {
 			"NotifierNotUnique" => Error::NotifierNotUnique,
 			"UserNotFound" => Error::UserNotFound,
 			"FailedToSerialize" => Error::FailedToSerialize,
+			"AuthDataEmpty" => Error::AuthDataEmpty,
+			"BadAuthData" => Error::BadAuthData,
 			_ => panic!("UnknownError"),
 		}
 	}

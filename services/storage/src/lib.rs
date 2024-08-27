@@ -9,11 +9,12 @@ from the `Notifications` enum. (There cannot be duplicates)
 
 */
 use rusqlite::{Connection, Result};
-use std::sync::Mutex;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub mod users;
 
-pub type DbConn = Mutex<Connection>;
+pub type DbConn = Arc<Mutex<Connection>>;
 
 pub fn init_db(db_path: &'static str) -> Result<DbConn> {
 	// Create the db if it does not exist.
@@ -31,5 +32,5 @@ pub fn init_db(db_path: &'static str) -> Result<DbConn> {
 		(),
 	)?;
 
-	Ok(Mutex::new(conn))
+	Ok(Arc::new(Mutex::new(conn)))
 }

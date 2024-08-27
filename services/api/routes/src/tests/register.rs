@@ -1,7 +1,7 @@
 use crate::{
 	errors::Error,
 	query::user,
-	register::{register_user, RegistrationData},
+	register::{register_user, AuthData, RegistrationData},
 	tests::mock::execute_with,
 };
 use rocket::{
@@ -31,22 +31,19 @@ fn register_works() {
 
 		let client = Client::tracked(rocket).expect("failed to create a client");
 
+		let dummy_auth_data = AuthData {
+			email_access_token: Some("token".to_string()),
+			tg_auth_token: Some("token".to_string()),
+		};
+
 		let mut registration_data = RegistrationData {
 			id: 0,
-			notifier: Notifier::Email,
-			email: None,
-			tg_handle: None,
+			notifier: Notifier::Null,
 			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
 		};
-		// CASE 1: the user did not set the notifier.
-		let response = register(&client, &registration_data);
 
-		assert_eq!(response.status(), Status::BadRequest);
-		assert_eq!(parse_err_response(response), Error::NotifierEmpty);
-
-		// CASE 2: correct data, should work.
-		registration_data.email = Some("dummy@gmail.com".to_string());
-		registration_data.tg_handle = Some("@dummy".to_string());
+		registration_data.notifier = Notifier::Email("dummy@gmail.com".to_string());
 
 		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Ok);
@@ -55,44 +52,112 @@ fn register_works() {
 		// After registering we should be able to get the user:
 		assert_eq!(
 			parse_ok_response(response),
-			User {
-				id: 0,
-				email: Some("dummy@gmail.com".to_string()),
-				tg_handle: Some("@dummy".to_string()),
-				notifier: Notifier::Email,
-			}
+			User { id: 0, notifier: Notifier::Email("dummy@gmail.com".to_string()) }
 		);
 
-		// CASE 3: user with the same id exists
+		// User with the same id exists:
 		let response = register(&client, &registration_data);
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), Error::UserExists);
 
-		// CASE 4: user with the same email exists:
+		// User with the same email exists:
 		let registration_data = RegistrationData {
 			id: 1,
-			notifier: Notifier::Email,
-			email: Some("dummy@gmail.com".to_string()),
-			tg_handle: None,
+			notifier: Notifier::Email("dummy@gmail.com".to_string()),
 			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
 		};
 		let response = register(&client, &registration_data);
 
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), Error::NotifierNotUnique);
 
-		// CASE 5: user with the same telegram exists:
-		let registration_data = RegistrationData {
-			id: 1,
-			notifier: Notifier::Telegram,
-			email: None,
-			tg_handle: Some("@dummy".to_string()),
-			enabled_notifications: vec![],
-		};
+		// Register two users with the same telegram handle:
 
-		let response = register(&client, &registration_data);
+		// First time works because there is no user with the same tg:
+		let tg_user_1 = RegistrationData {
+			id: 2,
+			notifier: Notifier::Telegram("@dummy".to_string()),
+			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
+		};
+		let response = register(&client, &tg_user_1);
+		assert_eq!(response.status(), Status::Ok);
+
+		// Second time fails:
+		let tg_user_2 = RegistrationData {
+			id: 3,
+			notifier: Notifier::Telegram("@dummy".to_string()),
+			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
+		};
+		let response = register(&client, &tg_user_2);
 		assert_eq!(response.status(), Status::Conflict);
 		assert_eq!(parse_err_response(response), Error::NotifierNotUnique);
+	});
+}
+
+#[test]
+fn register_fails_without_notifier() {
+	execute_with(DB_PATH, || {
+		let conn = init_db(DB_PATH).unwrap();
+		let rocket = rocket::build().manage(conn).mount("/", routes![register_user, user]);
+
+		let client = Client::tracked(rocket).expect("failed to create a client");
+
+		let dummy_auth_data = AuthData {
+			email_access_token: Some("token".to_string()),
+			tg_auth_token: Some("token".to_string()),
+		};
+
+		let registration_data = RegistrationData {
+			id: 0,
+			notifier: Notifier::Null,
+			enabled_notifications: vec![],
+			auth_data: dummy_auth_data.clone(),
+		};
+
+		// User did not set the notifier:
+		let response = register(&client, &registration_data);
+
+		assert_eq!(response.status(), Status::BadRequest);
+		assert_eq!(parse_err_response(response), Error::NotifierEmpty);
+	});
+}
+
+#[test]
+fn register_fails_without_auth_data() {
+	execute_with(DB_PATH, || {
+		let conn = init_db(DB_PATH).unwrap();
+		let rocket = rocket::build().manage(conn).mount("/", routes![register_user, user]);
+
+		let client = Client::tracked(rocket).expect("failed to create a client");
+
+		let mut registration_data = RegistrationData {
+			id: 0,
+			notifier: Notifier::Email("dummy@gmail.com".to_string()),
+			enabled_notifications: vec![],
+			auth_data: AuthData {
+				email_access_token: Some("token".to_string()),
+				tg_auth_token: Some("token".to_string()),
+			},
+		};
+
+		// CASE 1: email auth not set
+		registration_data.auth_data.email_access_token = None;
+		let response = register(&client, &registration_data);
+
+		assert_eq!(response.status(), Status::BadRequest);
+		assert_eq!(parse_err_response(response), Error::AuthDataEmpty);
+
+		// CASE 2: tg auth not set
+		registration_data.auth_data.tg_auth_token = None;
+		registration_data.notifier = Notifier::Telegram("@dummy".to_string());
+
+		let response = register(&client, &registration_data);
+
+		assert_eq!(response.status(), Status::BadRequest);
+		assert_eq!(parse_err_response(response), Error::AuthDataEmpty);
 	});
 }
 
