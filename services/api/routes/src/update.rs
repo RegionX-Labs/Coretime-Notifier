@@ -1,16 +1,16 @@
-/*
-** Update route should handle updating the information of the existing user.
-** A user is allowed to update information such as follows:
-** Chosen notifier, set to null to disable notifications
-** The user's email address
-** User's telegram handle
-** User's enabled notifications
-**
-** Validate user by exists by using only the ID.
-** If the ID exists, then it can be validated.
-**
-** How can we ensure that the owner of the email | tg is making the update?
-*/
+//! ## Update Route
+//!
+//! Update route should handle updating the information of the existing user.
+//! A user is allowed to update the following information:
+//! - User's notifier (set to null to disable notifications)
+//! - User's email address
+//! - User's telegram handle
+//! - User's enabled notifications
+//!
+//! We ensure the user exists before validating.
+//! If the ID exists, then it can be validated.
+//!
+//! How can we ensure that the owner of the email | tg is making the update?
 
 use crate::{
 	errors::{custom_error, Error},
