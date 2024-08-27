@@ -32,6 +32,7 @@ pub struct UpdateData {
 	pub id: u32,
 	// The email address to update to,
 	pub email: Option<String>,
+	#[serde(rename = "tgHandle")]
 	// The telegram handle to update to
 	pub tg_handle: Option<String>,
 	// The desired notifier to use.
@@ -44,7 +45,7 @@ pub struct UpdateData {
 pub async fn update_user(
 	conn: &State<DbConn>,
 	update_data: Json<UpdateData>,
-) -> Result<(), status::Custom<Json<ErrorResponse>>> {
+) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
 	// validate the data passed
 	// Get data to update and serialize
 	// Update the data
@@ -57,16 +58,24 @@ pub async fn update_user(
 	})?;
 
 	// Ensure user exists
-	let db_user = verify_existing_id(&conn, update_data.id)?;
+	let db_user = verify_existing_id(&conn, update_data.id.clone())?;
 
 	let user = User {
 		email: update_data.email.clone(),
 		tg_handle: update_data.tg_handle.clone(),
 		id: update_data.id.clone(),
-		notifier: update_data.notifier.clone().unwrap(),
-	};
-	// User::update_user(&conn, user);
-	Ok(())
+		notifier: if update_data.notifier.clone().is_some() {
+			update_data.notifier.clone().unwrap()
+		} else {
+			db_user.notifier
+		},
+	};	
+	let result = User::update(&conn, &user); 
+
+	match result {
+		Ok(_) => Ok(status::Custom(Status::Ok, ())),
+		Err(_) => Err(custom_error(Status::InternalServerError, Error::DbError)),
+	}
 }
 
 fn verify_existing_id(
@@ -74,7 +83,7 @@ fn verify_existing_id(
 	user_id: u32,
 ) -> Result<User, status::Custom<Json<ErrorResponse>>> {
 	let maybe_user = User::query_by_id(&conn, user_id).map_err(|err| {
-		log::error!(target: LOG_TARGET, "Failed to searhc user by id: {:?}", err);
+		log::error!(target: LOG_TARGET, "Failed to search user by id: {:?}", err);
 		custom_error(Status::InternalServerError, Error::DbError)
 	})?;
 

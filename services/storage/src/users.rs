@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, Error, Result};
 use serde::{Deserialize, Serialize};
 use types::Notifier;
 
@@ -114,48 +114,42 @@ impl User {
 			Some(notifier) => {
 				conn.execute(
 					"INSERT INTO users
-                        (id, email, tg_handle, notifier)
-                        VALUES (?1, ?2, ?3, ?4)
+                        (email, tg_handle, notifier)
+                        VALUES (?1, ?2, ?3)
                     ",
-					params![id, email, tg_handle, notifier],
+					params![email, tg_handle, notifier],
 				)?;
 			},
 			None => {
 				conn.execute(
 					"INSERT INTO users
                         (email, tg_handle, notifier)
-                        VALUES (?1, ?2, ?3, NULL)
+                        VALUES (?1, ?2, NULL)
                     ",
-					params![id, email, tg_handle],
+					params![email, tg_handle],
 				)?;
 			},
 		};
 		Ok(())
 	}
 
-	pub fn update(conn: &Connection, user: &User) -> Result<()> {
+	pub fn update(conn: &Connection, user: &User) -> Result<usize, Error> {
 		let User { id, email, tg_handle, .. } = user;
 		let notifier = Self::notifier_to_text(&user.notifier);
 
-		if notifier.is_some() {
+		let result = if notifier.is_some() {
 			conn.execute(
-				"UPDATE users SET
-					email = ?1, tg_handle = ?2, notifier = ?3
-					WHERE id = ?4
-				",
-				params![email, tg_handle, notifier.unwrap(), id],
-			)?;
+				"UPDATE users SET email = ?1, tg_handle = ?2, notifier = ?3 WHERE id = ?4",
+				params![email, tg_handle, notifier, id],
+			)
 		} else {
 			conn.execute(
-				"UPDATE users SET
-					email = ?1, tg_handle = ?2, notifier = NULL
-					WHERE id = ?3
-				",
+				"UPDATE users SET email = ?1, tg_handle = ?2, notifier = NULL WHERE id = ?3",
 				params![email, tg_handle, id],
-			)?;
-		}
+			)
+		};
 
-		Ok(())
+		result
 	}
 
 	fn notifier_to_text(notifier: &Notifier) -> Option<String> {
