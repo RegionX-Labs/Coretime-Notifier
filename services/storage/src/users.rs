@@ -115,18 +115,18 @@ impl User {
 				conn.execute(
 					"INSERT INTO users
                         (email, tg_handle, notifier)
-                        VALUES (?1, ?2, ?3)
+                        VALUES (?1, ?2, ?3, ?4)
                     ",
-					params![email, tg_handle, notifier],
+					params![id, email, tg_handle, notifier],
 				)?;
 			},
 			None => {
 				conn.execute(
 					"INSERT INTO users
                         (email, tg_handle, notifier)
-                        VALUES (?1, ?2, NULL)
+                        VALUES (?1, ?2, ?3, NULL)
                     ",
-					params![email, tg_handle],
+					params![id, email, tg_handle],
 				)?;
 			},
 		};

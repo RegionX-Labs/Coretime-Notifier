@@ -79,6 +79,14 @@ fn ensure_unique_data(
 	conn: &Connection,
 	registration_data: &Json<RegistrationData>,
 ) -> Result<(), status::Custom<Json<ErrorResponse>>> {
+	let maybe_user = User::query_by_id(&conn, registration_data.id).map_err(|err| {
+		log::error!(target: LOG_TARGET, "Failed to search user by id: {:?}", err);
+		custom_error(Status::InternalServerError, Error::DbError)
+	})?;
+
+	// Ensure that the id is unique.
+	ensure!(maybe_user.is_none(), custom_error(Status::Conflict, Error::UserExists));
+
 	let error = custom_error(Status::Conflict, Error::NotifierNotUnique);
 
 	if let Some(email) = registration_data.email.clone() {
