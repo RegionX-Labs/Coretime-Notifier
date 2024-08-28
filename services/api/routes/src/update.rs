@@ -62,9 +62,7 @@ pub async fn update_user(
 	log::info!(target: LOG_TARGET, "Update user request {:?}", update_data);
 
 	// validate the data passed
-	update_data
-		.validate()
-		.map_err(|err| custom_error(Status::BadRequest, err))?;
+	update_data.validate().map_err(|err| custom_error(Status::BadRequest, err))?;
 
 	// Get connection:
 	let conn = conn.lock().map_err(|err| {
@@ -84,8 +82,8 @@ pub async fn update_user(
 		} else {
 			db_user.notifier
 		},
-	};	
-	let result = User::update(&conn, &user); 
+	};
+	let result = User::update(&conn, &user);
 
 	match result {
 		Ok(_) => Ok(status::Custom(Status::Ok, ())),
