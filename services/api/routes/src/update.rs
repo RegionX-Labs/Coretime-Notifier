@@ -41,15 +41,30 @@ pub struct UpdateData {
 	pub notifier: Option<Notifier>,
 }
 
+impl UpdateData {
+	fn validate(&self) -> Result<(), Error> {
+		// Ensure the configured notifier is set.
+		match &self.notifier {
+			Some(Notifier::Email) if self.email.is_none() => Err(Error::NotifierEmpty),
+			Some(Notifier::Telegram) if self.tg_handle.is_none() => Err(Error::NotifierEmpty),
+			_ => Ok(()),
+		}
+	}
+}
+
 #[put("/update_user", data = "<update_data>")]
 pub async fn update_user(
 	conn: &State<DbConn>,
 	update_data: Json<UpdateData>,
 ) -> Result<status::Custom<()>, status::Custom<Json<ErrorResponse>>> {
-	// validate the data passed
 	// Get data to update and serialize
 	// Update the data
 	log::info!(target: LOG_TARGET, "Update user request {:?}", update_data);
+
+	// validate the data passed
+	update_data
+		.validate()
+		.map_err(|err| custom_error(Status::BadRequest, err))?;
 
 	// Get connection:
 	let conn = conn.lock().map_err(|err| {
