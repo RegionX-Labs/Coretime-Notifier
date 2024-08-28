@@ -2,7 +2,7 @@ use crate::{
 	errors::Error,
 	query::user,
 	register::{register_user, RegistrationData},
-	tests::mock::execute_with,
+	tests::mock::{execute_with, parse_err_response, parse_ok_response},
 };
 use rocket::{
 	http::{ContentType, Status},
@@ -61,15 +61,4 @@ fn register<'a>(client: &'a Client, data: &'a RegistrationData) -> LocalResponse
 		.header(ContentType::JSON)
 		.body(serde_json::to_string(&data).unwrap())
 		.dispatch()
-}
-
-fn parse_ok_response<'a>(response: LocalResponse<'a>) -> User {
-	let body = response.into_string().unwrap();
-	serde_json::from_str(&body).expect("can't parse value")
-}
-
-fn parse_err_response<'a>(response: LocalResponse<'a>) -> Error {
-	let body = response.into_string().unwrap();
-	let error: ErrorResponse = from_str(&body).unwrap();
-	error.message.into()
 }

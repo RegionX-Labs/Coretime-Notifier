@@ -2,7 +2,7 @@ use rocket::{http::{ContentType, Status}, local::blocking::{Client, LocalRespons
 use storage::{init_db, users::User};
 use types::Notifier;
 
-use crate::{query::user, register::{register_user, RegistrationData}, update::{update_user, UpdateData}, LOG_TARGET};
+use crate::{query::user, register::{register_user, RegistrationData}, tests::mock::parse_ok_response, update::{update_user, UpdateData}, LOG_TARGET};
 
 use super::mock::execute_with;
 
@@ -79,9 +79,4 @@ fn update<'a>(client: &'a Client, data: &'a UpdateData) -> LocalResponse<'a> {
         .header(ContentType::JSON)
         .body(serde_json::to_string(&data).unwrap())
         .dispatch()
-}
-
-fn parse_ok_response<'a>(response: LocalResponse<'a>) -> User {
-	let body = response.into_string().unwrap();
-	serde_json::from_str(&body).expect("can't parse value")
 }
