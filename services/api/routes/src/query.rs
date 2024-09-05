@@ -32,5 +32,6 @@ pub async fn user(
 		custom_error(Status::InternalServerError, Error::FailedToSerialize)
 	})?;
 
+	log::info!(target: LOG_TARGET, "Queried User: {:?}", serialized);
 	Ok(status::Custom(Status::Ok, serialized))
 }

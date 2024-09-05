@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, Error, Result};
 use serde::{Deserialize, Serialize};
 use types::Notifier;
 
@@ -108,17 +108,13 @@ impl User {
 
 	pub fn create_user(conn: &Connection, user: &User) -> Result<()> {
 		let User { id, email, tg_handle, .. } = user;
-		let notifier = match user.notifier {
-			Notifier::Email => Some("email"),
-			Notifier::Telegram => Some("telegram"),
-			_ => None,
-		};
+		let notifier = Self::notifier_to_text(&user.notifier);
 
 		match notifier {
 			Some(notifier) => {
 				conn.execute(
 					"INSERT INTO users
-                        (id, email, tg_handle, notifier)
+                        (email, tg_handle, notifier)
                         VALUES (?1, ?2, ?3, ?4)
                     ",
 					params![id, email, tg_handle, notifier],
@@ -135,5 +131,32 @@ impl User {
 			},
 		};
 		Ok(())
+	}
+
+	pub fn update(conn: &Connection, user: &User) -> Result<usize, Error> {
+		let User { id, email, tg_handle, .. } = user;
+		let notifier = Self::notifier_to_text(&user.notifier);
+
+		let result = if notifier.is_some() {
+			conn.execute(
+				"UPDATE users SET email = ?1, tg_handle = ?2, notifier = ?3 WHERE id = ?4",
+				params![email, tg_handle, notifier, id],
+			)
+		} else {
+			conn.execute(
+				"UPDATE users SET email = ?1, tg_handle = ?2, notifier = NULL WHERE id = ?3",
+				params![email, tg_handle, id],
+			)
+		};
+
+		result
+	}
+
+	fn notifier_to_text(notifier: &Notifier) -> Option<String> {
+		match notifier {
+			Notifier::Email => Some(String::from("email")),
+			Notifier::Telegram => Some("telegram".to_string()),
+			_ => None,
+		}
 	}
 }
